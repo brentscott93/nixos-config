@@ -14,11 +14,11 @@
 
   home-manager.useGlobalPkgs = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.efi.efiSysMountPoint = "/boot/efi";
+  boot.supportedFilesystems = [ "ntfs" ];
 
   networking.hostName = "brent-lab"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
@@ -104,10 +104,25 @@
   };
 
     home-manager.users.brent = { pkgs, ...}: {
-       home.packages = [pkgs.rclone pkgs.rsync pkgs.git];
+       home.packages = with pkgs; 
+		       [ rclone 
+			 rsync 
+			 git
+			 #personal scripts
+    			(import ./utils.nix) ];
         
        programs.bash.enable = true;
-       programs.bash.initExtra = "export PATH=$PATH:~/.emacs.d/bin";
+       programs.bash.initExtra = "export PATH=$PATH:~/.emacs.d/bin \n
+  flakify() {
+  if [ ! -e flake.nix ]; then
+    nix flake new -t github:nix-community/nix-direnv .
+  elif [ ! -e .envrc ]; then
+    echo 'use flake' > .envrc
+
+    direnv allow
+  fi
+  ${EDITOR:-vim} flake.nix
+}";
       
        #direnv
        programs.direnv.enable = true;
@@ -115,9 +130,13 @@
 
        programs.git = {
          enable = true;
-         userName = "brentscott93";
-         userEmail = "bdscott@umass.edu";
+         userName = "Brent Scott";
+         userEmail = "brentscott@mailfence.com";
         };
+	programs.password-store.enable = true;
+	programs.password-store.settings = { PASSWORD_STORE_DIR = "$HOME/.password-store"; };
+	
+	programs.gpg.enable = true;
 
     };
 
@@ -139,15 +158,19 @@
   environment.systemPackages = with pkgs; [
      vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
      wget
+     nfs-utils
+     nix-prefetch-git
+     wl-clipboard
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+   programs.gnupg.agent = {
+     enable = true;
+     enableSSHSupport = true;
+     pinentryFlavor = "gtk2";
+   };
 
   # List services that you want to enable:
 
